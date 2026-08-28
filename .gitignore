@@ -1,0 +1,7 @@
+codex_profiles/
+data/*.json
+data/*.png
+data/*.log
+.env
+__pycache__/
+*.pyc

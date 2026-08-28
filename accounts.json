@@ -1,0 +1,20 @@
+{
+  "accounts": [
+    {
+      "id": "acc01",
+      "label": "Acc 01"
+    },
+    {
+      "id": "acc02",
+      "label": "Acc 02"
+    },
+    {
+      "id": "acc03",
+      "label": "Acc 03"
+    },
+    {
+      "id": "acc04",
+      "label": "Acc 04"
+    }
+  ]
+}
