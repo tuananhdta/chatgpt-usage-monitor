@@ -110,6 +110,74 @@ def usage_color(value: Any) -> str:
     return BLUE
 
 
+def is_service_error(account: dict[str, Any]) -> bool:
+    if account.get("error_type") == "transient_service_error":
+        return True
+
+    text = str(account.get("error") or "").lower()
+    markers = (
+        "503 service unavailable",
+        "502 bad gateway",
+        "504 gateway timeout",
+        "500 internal server error",
+        "429 too many requests",
+        "upstream connect error",
+        "reset reason: overflow",
+        "timeout",
+    )
+    return any(marker in text for marker in markers)
+
+
+def is_login_error(account: dict[str, Any]) -> bool:
+    if account.get("error_type") == "account_auth_error":
+        return True
+
+    text = str(account.get("error") or "").lower()
+    markers = (
+        "không tìm thấy chatgpt account",
+        "profile chưa tồn tại",
+        "auth type",
+        "login",
+        "logged",
+        "unauthorized",
+        "401",
+        "403",
+    )
+    return any(marker in text for marker in markers)
+
+
+def error_cell_text(account: dict[str, Any]) -> tuple[str, str, str]:
+    attempts = account.get("attempts")
+    attempts_text = f"Retried {attempts}x. " if attempts else ""
+
+    if is_service_error(account):
+        return (
+            "ChatGPT API error",
+            f"{attempts_text}Backend returned 503/overflow.",
+            "Not a login issue. Retry later.",
+        )
+
+    if is_login_error(account):
+        return (
+            "Login required",
+            "Codex profile cannot read account data.",
+            "Please sign in again.",
+        )
+
+    error = safe_text(account.get("error"))
+    return (
+        "Account error",
+        text_fit_stub(error, 70),
+        "Please check logs.",
+    )
+
+
+def text_fit_stub(text: str, max_chars: int) -> str:
+    if len(text) <= max_chars:
+        return text
+    return text[: max_chars - 3].rstrip() + "..."
+
+
 def draw_header_icon(draw: ImageDraw.ImageDraw, cx: int, cy: int) -> None:
     draw.ellipse((cx - 38, cy - 38, cx + 38, cy + 38), fill="#deebff")
     bars = [
@@ -208,18 +276,24 @@ def draw_limit_cell(
     draw.text((x, y + 84), f"Reset VN: {reset}", fill=MUTED_BLUE, font=F_BODY)
 
 
-def reset_credit_lines(account: dict[str, Any]) -> tuple[str, str]:
+def reset_credit_lines(account: dict[str, Any]) -> list[str]:
     reset_credits = account.get("rate_limit_reset_credits") or {}
     credits = reset_credits.get("credits") or []
-    if not credits:
-        return ("No usage limit resets", "available at this time.")
+    available_credits = [
+        credit
+        for credit in credits
+        if credit.get("status") in (None, "available")
+    ]
+    if not available_credits:
+        return ["No usage limit resets", "available at this time."]
 
-    credit = credits[0]
-    title = safe_text(credit.get("title"), "Full reset")
-    expires = epoch_to_vn(credit.get("expiresAt"))
-    if expires:
-        return (title, f"Exp VN {expires}")
-    return (title, "Exp VN N/A")
+    count = len(available_credits)
+    label = "Full reset" if count == 1 else "Full resets"
+    lines = [f"{count} {label}"]
+    for index, credit in enumerate(available_credits, start=1):
+        expires = epoch_to_vn(credit.get("expiresAt")) or "N/A"
+        lines.append(f"Exp {index} VN {expires}")
+    return lines
 
 
 def draw_reset_cell(
@@ -230,10 +304,21 @@ def draw_reset_cell(
     w: int,
 ) -> None:
     draw_clock(draw, x + 30, y + 52)
-    line_1, line_2 = reset_credit_lines(account)
+    lines = reset_credit_lines(account)
     text_x = x + 86
-    draw.text((text_x, y + 26), text_fit(draw, line_1, F_RESET, w - 88), fill=INK, font=F_RESET)
-    draw.text((text_x, y + 65), text_fit(draw, line_2, F_RESET, w - 88), fill=MUTED_BLUE, font=F_RESET)
+    compact = len(lines) > 2
+    line_font = F_SMALL if compact else F_RESET
+    line_gap = 29 if compact else 39
+    start_y = y + 16 if compact else y + 26
+
+    for index, line in enumerate(lines):
+        color = INK if index == 0 else MUTED_BLUE
+        draw.text(
+            (text_x, start_y + index * line_gap),
+            text_fit(draw, line, line_font, w - 88),
+            fill=color,
+            font=line_font,
+        )
 
 
 def draw_table(draw: ImageDraw.ImageDraw, accounts: list[dict[str, Any]]) -> None:
@@ -293,9 +378,25 @@ def draw_table(draw: ImageDraw.ImageDraw, accounts: list[dict[str, Any]]) -> Non
         draw.text((table_x + 140, row_y + 62), label, fill=INK, font=F_ACCOUNT)
 
         if account.get("status") != "ok":
-            error = safe_text(account.get("error"))
-            draw.text((col_x[1] + 40, row_y + 55), "Account error", fill=ERROR, font=F_PERCENT)
-            draw.text((col_x[2] + 34, row_y + 61), text_fit(draw, error, F_BODY, col_widths[2] - 68), fill=MUTED_BLUE, font=F_BODY)
+            title, detail, action = error_cell_text(account)
+            draw.text(
+                (col_x[1] + 40, row_y + 42),
+                title,
+                fill=ERROR,
+                font=F_RESET,
+            )
+            draw.text(
+                (col_x[2] + 34, row_y + 38),
+                text_fit(draw, detail, F_RESET, col_widths[2] - 68),
+                fill=INK,
+                font=F_RESET,
+            )
+            draw.text(
+                (col_x[2] + 34, row_y + 78),
+                text_fit(draw, action, F_RESET, col_widths[2] - 68),
+                fill=MUTED_BLUE,
+                font=F_RESET,
+            )
             continue
 
         draw_limit_cell(draw, col_x[1] + 40, content_y, col_widths[1] - 64, account.get("five_hour") or {})

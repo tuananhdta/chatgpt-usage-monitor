@@ -193,6 +193,18 @@ setx SLACK_BOT_TOKEN "xoxb-..."
 setx SLACK_CHANNEL_ID "C0123456789"
 ```
 
+Nếu có tài khoản bị logout hoặc lỗi không lấy được data, script sẽ gửi cảnh báo
+trực tiếp vào Slack bằng tiếng Việt và tag `@TuanAnh`. Để tag chắc chắn theo
+Slack user ID, có thể cấu hình thêm:
+
+```powershell
+setx SLACK_ALERT_MENTION "<@U0123456789>"
+```
+
+Với lỗi tạm thời từ ChatGPT như `503 Service Unavailable`, script sẽ tự thử lại
+3 lần trước khi báo Slack và message sẽ ghi rõ đây là lỗi hệ thống/API, không
+phải lỗi logout.
+
 Mở terminal mới sau khi `setx`, rồi chạy:
 
 ```powershell

@@ -32,6 +32,10 @@ def main() -> int:
         print("Slack skipped by --skip-slack.")
         return 0
 
+    alert_sent = slack_notify.send_usage_error_alert()
+    if alert_sent:
+        print("Sent Slack alert for accounts with data collection errors.")
+
     return slack_notify.main()
 
 
