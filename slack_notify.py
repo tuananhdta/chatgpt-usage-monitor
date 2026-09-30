@@ -126,6 +126,19 @@ def _is_login_error(item: dict[str, Any]) -> bool:
     return any(marker in text for marker in markers)
 
 
+def _is_environment_error(item: dict[str, Any]) -> bool:
+    if item.get("error_type") == "environment_error":
+        return True
+
+    text = str(item.get("error") or "").lower()
+    markers = (
+        "không tìm thấy lệnh 'codex'",
+        "codex.exe",
+        "no such file or directory: codex",
+    )
+    return any(marker in text for marker in markers)
+
+
 def _account_line(item: dict[str, Any]) -> str:
     label = item.get("label") or item.get("id") or "Không rõ"
     account_id = item.get("id") or "N/A"
@@ -146,15 +159,28 @@ def format_usage_error_alert(
         lines.append(f"Thời gian ghi nhận: {collected_at_vn} (giờ Việt Nam).")
 
     service_errors = [item for item in errors if _is_service_error(item)]
+    environment_errors = [
+        item
+        for item in errors
+        if item not in service_errors and _is_environment_error(item)
+    ]
     login_errors = [
         item
         for item in errors
-        if item not in service_errors and _is_login_error(item)
+        if (
+            item not in service_errors
+            and item not in environment_errors
+            and _is_login_error(item)
+        )
     ]
     other_errors = [
         item
         for item in errors
-        if item not in service_errors and item not in login_errors
+        if (
+            item not in service_errors
+            and item not in environment_errors
+            and item not in login_errors
+        )
     ]
 
     if service_errors:
@@ -169,6 +195,19 @@ def format_usage_error_alert(
             ]
         )
         lines.extend(_account_line(item) for item in service_errors)
+
+    if environment_errors:
+        lines.extend(
+            [
+                "",
+                "Nhóm lỗi môi trường máy tính:",
+                (
+                    "Không tìm thấy Codex CLI trong PATH hoặc thư mục cài đặt; "
+                    "chưa cần đăng nhập lại tài khoản."
+                ),
+            ]
+        )
+        lines.extend(_account_line(item) for item in environment_errors)
 
     if login_errors:
         lines.extend(["", "Nhóm cần kiểm tra đăng nhập:"])
@@ -190,6 +229,11 @@ def format_usage_error_alert(
         lines.append("")
         lines.append(
             "Hành động đề xuất: chờ lần chạy kế tiếp hoặc chạy lại sau vài phút."
+        )
+    if environment_errors:
+        lines.append("")
+        lines.append(
+            "Hành động đề xuất: kiểm tra/cài lại Codex CLI rồi chạy lại monitor."
         )
     return "\n".join(lines)
 

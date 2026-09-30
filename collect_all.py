@@ -38,6 +38,16 @@ def is_transient_error(error: Exception) -> bool:
     return any(marker in text for marker in markers)
 
 
+def is_environment_error(error: Exception) -> bool:
+    text = str(error).lower()
+    markers = (
+        "không tìm thấy lệnh 'codex'",
+        "codex.exe",
+        "no such file or directory: codex",
+    )
+    return any(marker in text for marker in markers)
+
+
 def collect_profile_with_retry(profile_dir: Path) -> tuple[dict[str, object], int]:
     last_error: Exception | None = None
 
@@ -114,6 +124,8 @@ def main() -> None:
                 "error_type": (
                     "transient_service_error"
                     if is_transient_error(exc)
+                    else "environment_error"
+                    if is_environment_error(exc)
                     else "account_auth_error"
                 ),
                 "attempts": COLLECT_ATTEMPTS if is_transient_error(exc) else 1,

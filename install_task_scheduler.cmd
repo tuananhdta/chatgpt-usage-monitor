@@ -6,7 +6,11 @@ set "TASK_PREFIX=ChatGPT Usage Monitor"
 set "RUN_CMD=%~dp0run_report_once_scheduled.cmd"
 
 for %%T in (09:00 10:00 11:00 13:00 14:00 15:00 16:00 17:00) do (
-  schtasks /Create /F /TN "%TASK_PREFIX% %%T" /SC WEEKLY /D MON,TUE,WED,THU,FRI /ST %%T /TR "\"%RUN_CMD%\""
+  set "TASK_TIME=%%T"
+  setlocal enabledelayedexpansion
+  set "TASK_NAME=%TASK_PREFIX% !TASK_TIME::=!"
+  schtasks /Create /F /TN "!TASK_NAME!" /SC WEEKLY /D MON,TUE,WED,THU,FRI /ST %%T /TR "\"%RUN_CMD%\""
+  endlocal
   if errorlevel 1 exit /b 1
 )
 

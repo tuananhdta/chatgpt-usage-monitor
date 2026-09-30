@@ -32,6 +32,13 @@ RED_ACCENT = "#e30613"
 AMBER = "#d97706"
 ERROR = "#c33d32"
 
+TABLE_Y = 154
+TABLE_WIDTH = 1656
+TABLE_HEADER_HEIGHT = 80
+TABLE_ROW_HEIGHT = 164
+TABLE_BOTTOM_MARGIN = 31
+CANVAS_WIDTH = 1688
+
 
 def configure_console() -> None:
     for stream in (sys.stdout, sys.stderr):
@@ -68,6 +75,27 @@ def safe_text(value: Any, fallback: str = "N/A") -> str:
         return fallback
     text = str(value).strip()
     return text if text else fallback
+
+
+def filter_dashboard_accounts(accounts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        account
+        for account in accounts
+        if not (
+            isinstance(account.get("plan_type"), str)
+            and account["plan_type"].strip().casefold() == "free"
+        )
+    ]
+
+
+def dashboard_height(account_count: int) -> int:
+    visible_count = max(0, min(4, account_count))
+    return (
+        TABLE_Y
+        + TABLE_HEADER_HEIGHT
+        + TABLE_ROW_HEIGHT * visible_count
+        + TABLE_BOTTOM_MARGIN
+    )
 
 
 def epoch_to_vn(ts: Any) -> str | None:
@@ -323,11 +351,12 @@ def draw_reset_cell(
 
 def draw_table(draw: ImageDraw.ImageDraw, accounts: list[dict[str, Any]]) -> None:
     table_x = 16
-    table_y = 154
-    table_w = 1656
-    header_h = 80
-    row_h = 164
-    table_h = header_h + row_h * 4
+    table_y = TABLE_Y
+    table_w = TABLE_WIDTH
+    header_h = TABLE_HEADER_HEIGHT
+    row_h = TABLE_ROW_HEIGHT
+    visible_accounts = accounts[:4]
+    table_h = header_h + row_h * len(visible_accounts)
     col_widths = [306, 416, 502, 432]
     col_x = [table_x]
     for width in col_widths[:-1]:
@@ -361,13 +390,9 @@ def draw_table(draw: ImageDraw.ImageDraw, accounts: list[dict[str, Any]]) -> Non
         x_cursor += width
         draw.line((x_cursor, table_y, x_cursor, table_y + table_h), fill=GRID, width=2)
 
-    for row in range(5):
+    for row in range(len(visible_accounts) + 1):
         y = table_y + header_h + row * row_h
         draw.line((table_x, y, table_x + table_w, y), fill=GRID, width=2)
-
-    visible_accounts = accounts[:4]
-    while len(visible_accounts) < 4:
-        visible_accounts.append({"label": f"Acc {len(visible_accounts) + 1:02d}", "status": "error", "error": "No data"})
 
     for index, account in enumerate(visible_accounts):
         row_y = table_y + header_h + index * row_h
@@ -406,9 +431,9 @@ def draw_table(draw: ImageDraw.ImageDraw, accounts: list[dict[str, Any]]) -> Non
 
 def render_dashboard(usage_path: Path = DEFAULT_USAGE_PATH, output_path: Path = DEFAULT_OUTPUT_PATH) -> Path:
     payload = json.loads(usage_path.read_text(encoding="utf-8"))
-    accounts = payload.get("accounts") or []
+    accounts = filter_dashboard_accounts(payload.get("accounts") or [])
 
-    img = Image.new("RGBA", (1688, 921), BG)
+    img = Image.new("RGBA", (CANVAS_WIDTH, dashboard_height(len(accounts))), BG)
     draw = ImageDraw.Draw(img)
 
     draw.rounded_rectangle((16, 17, 1672, 123), radius=16, fill=HEADER_FILL, outline=BORDER, width=2)

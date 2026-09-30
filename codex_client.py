@@ -21,9 +21,24 @@ class CodexError(RuntimeError):
 def find_codex() -> str:
     exe = shutil.which("codex")
     if not exe:
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        roots = []
+        if local_app_data:
+            roots.append(Path(local_app_data))
+        roots.append(Path.home() / "AppData" / "Local")
+
+        candidates: list[Path] = []
+        for root in roots:
+            bin_dir = root / "OpenAI" / "Codex" / "bin"
+            if bin_dir.exists():
+                candidates.extend(bin_dir.glob("*/codex.exe"))
+
+        if candidates:
+            return str(max(candidates, key=lambda path: path.stat().st_mtime))
+
         raise CodexError(
-            "Không tìm thấy lệnh 'codex' trong PATH. "
-            "Hãy mở terminal mới và kiểm tra: codex --version"
+            "Không tìm thấy Codex CLI trong PATH hoặc thư mục cài đặt chuẩn. "
+            "Hãy cài lại Codex và kiểm tra: codex --version"
         )
     return exe
 
