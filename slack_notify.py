@@ -192,25 +192,13 @@ def format_dashboard_caption(
     requested_at_vn: str,
     errors: list[dict[str, Any]] | None = None,
 ) -> str:
-    """Create the caption for a standalone dashboard upload.
+    """Create the minimal caption for a standalone dashboard upload.
 
     The upload flow intentionally does not include a thread timestamp, so
-    every dashboard appears as a new top-level channel message.
+    every dashboard appears as a new top-level channel message. The image
+    itself contains the usage details; Slack only needs the update time.
     """
-    source_label = SOURCE_LABELS.get(source, source.title())
-    lines = [
-        "Giám sát mức sử dụng ChatGPT",
-        f"Nguồn: {source_label}",
-        f"Người yêu cầu: {requested_by or 'Không rõ'}",
-        f"Cập nhật: {requested_at_vn} (giờ Việt Nam)",
-    ]
-    if errors:
-        labels = ", ".join(
-            str(item.get("label") or item.get("id") or "Không rõ")
-            for item in errors
-        )
-        lines.append(f"Lỗi tài khoản: {labels}")
-    return "\n".join(lines)
+    return f"Cập nhật: {requested_at_vn} (giờ Việt Nam)"
 
 
 def format_refresh_failure(error: Exception) -> str:

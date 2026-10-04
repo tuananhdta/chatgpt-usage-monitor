@@ -84,8 +84,10 @@ class RefreshPipelineTests(unittest.TestCase):
             self.assertEqual(saved["requested_by"], "TuanAnh")
             self.assertEqual(result.account_errors[0]["id"], "acc02")
             caption = upload.call_args.args[3]
-            self.assertIn("Nguồn: Làm mới thủ công", caption)
-            self.assertIn("Lỗi tài khoản: Acc 02", caption)
+            self.assertEqual(
+                caption,
+                f"Cập nhật: {result.requested_at_vn} (giờ Việt Nam)",
+            )
             self.assertNotIn("thread_ts", upload.call_args.kwargs)
 
     def test_cooldown_blocks_second_refresh(self) -> None:
@@ -111,15 +113,13 @@ class RefreshPipelineTests(unittest.TestCase):
 
 
 class DashboardCaptionTests(unittest.TestCase):
-    def test_automation_caption_is_explicit(self) -> None:
+    def test_caption_contains_only_update_time(self) -> None:
         caption = format_dashboard_caption(
             "automation",
             "Task Scheduler",
             "04/10/2026 10:15:00",
         )
-        self.assertIn("Nguồn: Tự động", caption)
-        self.assertIn("Người yêu cầu: Task Scheduler", caption)
-        self.assertIn("Cập nhật: 04/10/2026 10:15:00 (giờ Việt Nam)", caption)
+        self.assertEqual(caption, "Cập nhật: 04/10/2026 10:15:00 (giờ Việt Nam)")
 
 
 if __name__ == "__main__":
