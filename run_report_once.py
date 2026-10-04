@@ -3,9 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-import collect_all
-import render_dashboard
-import slack_notify
+import refresh_pipeline
 
 
 def configure_console() -> None:
@@ -22,21 +20,29 @@ def main() -> int:
         description="Collect usage, render dashboard PNG, and optionally send Slack."
     )
     parser.add_argument("--skip-slack", action="store_true")
+    parser.add_argument(
+        "--source",
+        choices=sorted(refresh_pipeline.VALID_SOURCES),
+        default="manual",
+    )
+    parser.add_argument("--requested-by", default="Command line")
     args = parser.parse_args()
 
-    collect_all.main()
-    dashboard = render_dashboard.render_dashboard()
-    print(f"Dashboard PNG: {dashboard}")
-
+    result = refresh_pipeline.refresh_usage(
+        args.source,
+        args.requested_by,
+        publish_slack=not args.skip_slack,
+    )
+    print(f"Ảnh bảng giám sát: {result.dashboard_path}")
     if args.skip_slack:
         print("Slack skipped by --skip-slack.")
-        return 0
-
-    alert_sent = slack_notify.send_usage_error_alert()
-    if alert_sent:
+    elif result.upload_response is not None:
+        print("Đã gửi bảng giám sát lên kênh Slack dưới dạng tin nhắn chính.")
+    if result.alert_sent:
         print("Sent Slack alert for accounts with data collection errors.")
-
-    return slack_notify.main()
+    if result.alert_error:
+        print(f"WARNING: Slack error alert failed: {result.alert_error}")
+    return 0
 
 
 if __name__ == "__main__":

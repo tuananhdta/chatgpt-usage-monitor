@@ -226,6 +226,74 @@ files.getUploadURLExternal
 files.completeUploadExternal
 ```
 
+## Refresh trực tiếp trên Slack
+
+Tính năng interactive refresh dùng Slack Socket Mode, phù hợp với máy Windows
+local vì không cần public HTTP endpoint.
+
+`.env` cần thêm:
+
+```text
+SLACK_APP_TOKEN=xapp-...
+SLACK_TEAM_ID=T...
+SLACK_ALLOWED_USER_IDS=U...,U...
+SLACK_REFRESH_COOLDOWN_SECONDS=45
+```
+
+`SLACK_ALLOWED_USER_IDS` phải là Slack user ID, không phải display name. App
+cần bật Socket Mode và có app-level token với scope `connections:write`.
+
+Tạo Control Panel một lần:
+
+```powershell
+python slack_control_panel.py
+```
+
+Đưa Control Panel lên đầu phần header của channel bằng bookmark:
+
+```powershell
+python slack_control_panel.py --bookmark
+```
+
+Lệnh này lấy permalink của Control Panel đã lưu trong `data/control_panel.json`,
+sau đó thêm bookmark `Bảng điều khiển làm mới` vào channel. Chạy lại lệnh sẽ cập
+nhật bookmark cũ, không tạo bản sao. Bot cần thêm scope `bookmarks:write`; sau
+khi đổi scope trong Slack App, cần cài/reinstall app vào workspace để bot token
+nhận quyền mới.
+
+Kiểm tra payload trước khi gửi:
+
+```powershell
+python slack_control_panel.py --dry-run
+```
+
+Chạy listener foreground để kiểm tra:
+
+```powershell
+python slack_listener.py --check-config
+python slack_listener.py
+```
+
+Listener nhận nút `Refresh`, phản hồi ngay, rồi chạy collect/render/upload trong
+background. Dashboard mới luôn là message top-level; dashboard cũ không bị xóa.
+
+Để listener tự chạy sau khi đăng nhập Windows:
+
+```text
+install_slack_listener_task.cmd
+```
+
+Installer tạo task chạy ẩn bằng `pythonw.exe` và `listener_watchdog.py`.
+Watchdog tự khởi động lại
+listener nếu process bị dừng bất thường, nhưng dừng hẳn khi thiếu cấu hình để
+tránh tạo vòng lặp lỗi vô hạn. Task được cấu hình tiếp tục chạy khi máy dùng
+pin và không giới hạn thời gian 72 giờ. Nếu Task Scheduler trả `Access is
+denied`, chạy installer bằng **Run as administrator** một lần.
+
+Automation và manual refresh dùng chung `refresh_pipeline.py`. Scheduled task
+ghi rõ `source=automation`; nút Slack ghi `source=manual`. Cả hai được bảo vệ
+bởi lock liên process và cooldown.
+
 ### Cài lịch Windows Task Scheduler
 
 Double-click:

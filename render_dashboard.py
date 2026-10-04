@@ -176,27 +176,27 @@ def is_login_error(account: dict[str, Any]) -> bool:
 
 def error_cell_text(account: dict[str, Any]) -> tuple[str, str, str]:
     attempts = account.get("attempts")
-    attempts_text = f"Retried {attempts}x. " if attempts else ""
+    attempts_text = f"Đã thử lại {attempts} lần. " if attempts else ""
 
     if is_service_error(account):
         return (
-            "ChatGPT API error",
-            f"{attempts_text}Backend returned 503/overflow.",
-            "Not a login issue. Retry later.",
+            "Lỗi API ChatGPT",
+            f"{attempts_text}Máy chủ trả lỗi 503/quá tải.",
+            "Không phải lỗi đăng nhập. Hãy thử lại sau.",
         )
 
     if is_login_error(account):
         return (
-            "Login required",
-            "Codex profile cannot read account data.",
-            "Please sign in again.",
+            "Yêu cầu đăng nhập",
+            "Hồ sơ Codex không đọc được dữ liệu tài khoản.",
+            "Vui lòng đăng nhập lại.",
         )
 
     error = safe_text(account.get("error"))
     return (
-        "Account error",
+        "Lỗi tài khoản",
         text_fit_stub(error, 70),
-        "Please check logs.",
+        "Vui lòng kiểm tra nhật ký.",
     )
 
 
@@ -299,9 +299,9 @@ def draw_limit_cell(
 
     draw.text((x, y), f"{remaining}%", fill=color, font=F_PERCENT)
     percent_w = int(draw.textlength(f"{remaining}%", font=F_PERCENT))
-    draw.text((x + percent_w + 14, y + 8), "remaining", fill=INK, font=F_REMAINING)
+    draw.text((x + percent_w + 14, y + 8), "còn lại", fill=INK, font=F_REMAINING)
     draw_progress(draw, x, y + 52, w - 34, 13, limit.get("remaining_percent"))
-    draw.text((x, y + 84), f"Reset VN: {reset}", fill=MUTED_BLUE, font=F_BODY)
+    draw.text((x, y + 84), f"Đặt lại VN: {reset}", fill=MUTED_BLUE, font=F_BODY)
 
 
 def reset_credit_lines(account: dict[str, Any]) -> list[str]:
@@ -313,14 +313,14 @@ def reset_credit_lines(account: dict[str, Any]) -> list[str]:
         if credit.get("status") in (None, "available")
     ]
     if not available_credits:
-        return ["No usage limit resets", "available at this time."]
+        return ["Không có lượt đặt lại", "hạn mức khả dụng lúc này."]
 
     count = len(available_credits)
-    label = "Full reset" if count == 1 else "Full resets"
+    label = "Lượt đặt lại đầy đủ"
     lines = [f"{count} {label}"]
     for index, credit in enumerate(available_credits, start=1):
         expires = epoch_to_vn(credit.get("expiresAt")) or "N/A"
-        lines.append(f"Exp {index} VN {expires}")
+        lines.append(f"Hết hạn {index} VN {expires}")
     return lines
 
 
@@ -378,7 +378,7 @@ def draw_table(draw: ImageDraw.ImageDraw, accounts: list[dict[str, Any]]) -> Non
     )
     draw.rectangle((table_x, table_y + header_h - 16, table_x + table_w, table_y + header_h), fill=HEADER_FILL)
 
-    headers = ["ACCOUNT", "5 HR LIMIT", "WEEKLY USAGE LIMIT", "RESET TIME"]
+    headers = ["TÀI KHOẢN", "HẠN MỨC 5 GIỜ", "HẠN MỨC HÀNG TUẦN", "THỜI GIAN ĐẶT LẠI"]
     for i, header in enumerate(headers):
         x = col_x[i]
         w = col_widths[i]
@@ -441,7 +441,7 @@ def render_dashboard(usage_path: Path = DEFAULT_USAGE_PATH, output_path: Path = 
     draw_header_icon(draw, 84, 70)
     draw.text(
         (136, 56),
-        "Usage: Codex, Work, Workspace Agents, and ChatGPT for Excel.",
+        "Mức sử dụng: Codex, Work, Workspace Agents và ChatGPT cho Excel.",
         fill=INK,
         font=F_TITLE,
     )
@@ -457,7 +457,7 @@ def render_dashboard(usage_path: Path = DEFAULT_USAGE_PATH, output_path: Path = 
         max_h=52,
     )
     logo_center_x = logo_box_x + logo_box_w / 2
-    collected = f"Collected VN: {safe_text(payload.get('collected_at_vn'))}"
+    collected = f"Thu thập lúc (VN): {safe_text(payload.get('collected_at_vn'))}"
     collected_w = draw.textlength(collected, font=F_SMALL)
     draw.text((logo_center_x - collected_w / 2, 88), collected, fill=MUTED_BLUE, font=F_SMALL)
 
@@ -476,7 +476,7 @@ def main() -> int:
     args = parser.parse_args()
 
     output = render_dashboard(Path(args.input), Path(args.output))
-    print(f"Saved dashboard: {output}")
+    print(f"Đã lưu bảng giám sát: {output}")
     return 0
 
 

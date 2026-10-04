@@ -16,6 +16,10 @@ DEFAULT_IMAGE_PATH = ROOT / "data" / "dashboard.png"
 DEFAULT_USAGE_PATH = ROOT / "data" / "usage.json"
 DEFAULT_ENV_PATH = ROOT / ".env"
 DEFAULT_ALERT_MENTION = "@TuanAnh"
+SOURCE_LABELS = {
+    "automation": "Tự động",
+    "manual": "Làm mới thủ công",
+}
 
 
 class SlackError(RuntimeError):
@@ -84,6 +88,41 @@ def post_message(token: str, channel_id: str, text: str) -> dict[str, Any]:
     )
 
 
+def post_blocks(
+    token: str,
+    channel_id: str,
+    text: str,
+    blocks: list[dict[str, Any]],
+    **extra_fields: Any,
+) -> dict[str, Any]:
+    fields: dict[str, Any] = {
+        "channel": channel_id,
+        "text": text,
+        "blocks": json.dumps(blocks, ensure_ascii=False),
+        "mrkdwn": "true",
+        **extra_fields,
+    }
+    return slack_api("chat.postMessage", token, fields)
+
+
+def post_ephemeral(
+    token: str,
+    channel_id: str,
+    user_id: str,
+    text: str,
+) -> dict[str, Any]:
+    return slack_api(
+        "chat.postEphemeral",
+        token,
+        {
+            "channel": channel_id,
+            "user": user_id,
+            "text": text,
+            "mrkdwn": "true",
+        },
+    )
+
+
 def _truncate(text: str, max_length: int = 500) -> str:
     if len(text) <= max_length:
         return text
@@ -147,13 +186,49 @@ def _account_line(item: dict[str, Any]) -> str:
     return f"- {label} ({account_id}){suffix}"
 
 
+def format_dashboard_caption(
+    source: str,
+    requested_by: str,
+    requested_at_vn: str,
+    errors: list[dict[str, Any]] | None = None,
+) -> str:
+    """Create the caption for a standalone dashboard upload.
+
+    The upload flow intentionally does not include a thread timestamp, so
+    every dashboard appears as a new top-level channel message.
+    """
+    source_label = SOURCE_LABELS.get(source, source.title())
+    lines = [
+        "Giám sát mức sử dụng ChatGPT",
+        f"Nguồn: {source_label}",
+        f"Người yêu cầu: {requested_by or 'Không rõ'}",
+        f"Cập nhật: {requested_at_vn} (giờ Việt Nam)",
+    ]
+    if errors:
+        labels = ", ".join(
+            str(item.get("label") or item.get("id") or "Không rõ")
+            for item in errors
+        )
+        lines.append(f"Lỗi tài khoản: {labels}")
+    return "\n".join(lines)
+
+
+def format_refresh_failure(error: Exception) -> str:
+    detail = _truncate(str(error) or "Không rõ lỗi", 500)
+    return (
+        "Giám sát mức sử dụng ChatGPT: làm mới thất bại.\n"
+        f"Lỗi: {detail}\n"
+        "Không có bảng dữ liệu mới được gửi. Vui lòng kiểm tra nhật ký giám sát."
+    )
+
+
 def format_usage_error_alert(
     errors: list[dict[str, Any]],
     collected_at_vn: str | None,
     mention: str = DEFAULT_ALERT_MENTION,
 ) -> str:
     lines = [
-        f"{mention} Cảnh báo: ChatGPT Usage Monitor chưa lấy được dữ liệu.",
+        f"{mention} Cảnh báo: Chưa lấy được dữ liệu sử dụng ChatGPT.",
     ]
     if collected_at_vn:
         lines.append(f"Thời gian ghi nhận: {collected_at_vn} (giờ Việt Nam).")
@@ -264,7 +339,7 @@ def send_usage_error_alert(
 
     if not token or not channel_id:
         raise SlackError(
-            "Set SLACK_BOT_TOKEN and SLACK_CHANNEL_ID before sending Slack alert."
+            "Hãy đặt SLACK_BOT_TOKEN và SLACK_CHANNEL_ID trước khi gửi cảnh báo Slack."
         )
 
     text = format_usage_error_alert(
@@ -315,7 +390,7 @@ def upload_image(
     upload_url = start.get("upload_url")
     file_id = start.get("file_id")
     if not upload_url or not file_id:
-        raise SlackError("Slack did not return upload_url/file_id.")
+        raise SlackError("Slack không trả về địa chỉ tải lên hoặc mã tệp.")
 
     upload_bytes(upload_url, image_bytes)
 
@@ -323,7 +398,7 @@ def upload_image(
         "files.completeUploadExternal",
         token,
         {
-            "files": json.dumps([{"id": file_id, "title": "ChatGPT Usage Dashboard"}]),
+            "files": json.dumps([{"id": file_id, "title": "Bảng giám sát mức sử dụng ChatGPT"}]),
             "channel_id": channel_id,
             "initial_comment": initial_comment,
         },
@@ -333,9 +408,9 @@ def upload_image(
 def main() -> int:
     configure_console()
     load_dotenv()
-    parser = argparse.ArgumentParser(description="Upload dashboard PNG to Slack.")
+    parser = argparse.ArgumentParser(description="Tải ảnh bảng giám sát lên Slack.")
     parser.add_argument("--image", default=str(DEFAULT_IMAGE_PATH))
-    parser.add_argument("--comment", default="ChatGPT usage dashboard")
+    parser.add_argument("--comment", default="Bảng giám sát mức sử dụng ChatGPT")
     parser.add_argument("--token", default=os.environ.get("SLACK_BOT_TOKEN"))
     parser.add_argument("--channel", default=os.environ.get("SLACK_CHANNEL_ID"))
     parser.add_argument("--dry-run", action="store_true")
@@ -343,20 +418,20 @@ def main() -> int:
 
     image_path = Path(args.image)
     if not image_path.exists():
-        print(f"ERROR: Image not found: {image_path}")
+        print(f"LỖI: Không tìm thấy ảnh: {image_path}")
         return 1
 
     if args.dry_run:
-        print(f"Dry run OK. Would upload: {image_path}")
+        print(f"Chạy thử thành công. Ảnh sẽ được tải lên: {image_path}")
         return 0
 
     if not args.token or not args.channel:
-        print("ERROR: Set SLACK_BOT_TOKEN and SLACK_CHANNEL_ID before sending Slack.")
+        print("LỖI: Hãy đặt SLACK_BOT_TOKEN và SLACK_CHANNEL_ID trước khi gửi lên Slack.")
         return 2
 
     result = upload_image(image_path, args.token, args.channel, args.comment)
     files = result.get("files") or []
-    print(f"Uploaded dashboard to Slack. Files: {len(files)}")
+    print(f"Đã tải bảng giám sát lên Slack. Số tệp: {len(files)}")
     return 0
 
 

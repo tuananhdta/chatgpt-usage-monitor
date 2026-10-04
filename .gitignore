@@ -2,6 +2,7 @@ codex_profiles/
 data/*.json
 data/*.png
 data/*.log
+data/*.lock
 .env
 __pycache__/
 *.pyc

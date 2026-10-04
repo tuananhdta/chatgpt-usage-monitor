@@ -106,10 +106,10 @@ class ResetCreditLinesTests(unittest.TestCase):
         self.assertEqual(
             reset_credit_lines(account),
             [
-                "3 Full resets",
-                "Exp 1 VN 21/09/2026 06:50",
-                "Exp 2 VN 04/10/2026 08:33",
-                "Exp 3 VN 05/10/2026 06:37",
+                "3 Lượt đặt lại đầy đủ",
+                "Hết hạn 1 VN 21/09/2026 06:50",
+                "Hết hạn 2 VN 04/10/2026 08:33",
+                "Hết hạn 3 VN 05/10/2026 06:37",
             ],
         )
 
