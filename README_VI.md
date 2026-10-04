@@ -256,7 +256,7 @@ python slack_control_panel.py --bookmark
 ```
 
 Lệnh này lấy permalink của Control Panel đã lưu trong `data/control_panel.json`,
-sau đó thêm bookmark `Bảng điều khiển làm mới` vào channel. Chạy lại lệnh sẽ cập
+sau đó thêm bookmark `Manual refresh` vào channel. Chạy lại lệnh sẽ cập
 nhật bookmark cũ, không tạo bản sao. Bot cần thêm scope `bookmarks:write`; sau
 khi đổi scope trong Slack App, cần cài/reinstall app vào workspace để bot token
 nhận quyền mới.

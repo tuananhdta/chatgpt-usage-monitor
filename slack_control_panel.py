@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent
 DEFAULT_STATE_PATH = ROOT / "data" / "control_panel.json"
 CONTROL_PANEL_TEXT = "Điều khiển giám sát mức sử dụng ChatGPT"
 REFRESH_ACTION_ID = "refresh_usage"
-BOOKMARK_TITLE = "Bảng điều khiển làm mới"
+BOOKMARK_TITLE = "Manual refresh"
 BOOKMARK_EMOJI = ":arrows_counterclockwise:"
 
 
