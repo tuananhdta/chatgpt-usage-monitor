@@ -101,6 +101,35 @@ class SlackListenerTests(unittest.TestCase):
         listener.executor.submit.assert_not_called()
         listener.close()
 
+    def test_wildcard_allows_any_user_in_configured_channel(self) -> None:
+        wildcard_config = slack_listener.ListenerConfig(
+            app_token="xapp-test",
+            bot_token="xoxb-test",
+            channel_id="C123",
+            team_id="T123",
+            allowed_user_ids=frozenset({"*"}),
+        )
+        listener = slack_listener.SlackRefreshListener(wildcard_config)
+        listener.executor.submit = Mock()
+        client = FakeSocketClient()
+        request = SocketModeRequest(
+            type="interactive",
+            envelope_id="env-wildcard",
+            payload={
+                "team": {"id": "T123"},
+                "channel": {"id": "C123"},
+                "user": {"id": "U999"},
+                "actions": [{"action_id": "refresh_usage"}],
+            },
+            accepts_response_payload=True,
+        )
+
+        listener.handle_request(client, request)
+
+        self.assertIn("Đang làm mới", client.responses[0].payload["text"])
+        listener.executor.submit.assert_called_once()
+        listener.close()
+
     def test_listener_config_requires_allowlist_and_app_token(self) -> None:
         with patch.dict(
             "os.environ",

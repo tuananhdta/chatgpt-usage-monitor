@@ -169,7 +169,12 @@ class SlackRefreshListener:
             return False, "Không gian làm việc Slack này không được cấp quyền.", channel_id, user_id, message_ts, user
         if channel_id != self.config.channel_id:
             return False, "Kênh này không được phép làm mới dữ liệu.", channel_id, user_id, message_ts, user
-        if user_id not in self.config.allowed_user_ids:
+        # An explicit wildcard allows every user in the configured workspace
+        # and channel. Keep the workspace/channel checks above in place.
+        if (
+            "*" not in self.config.allowed_user_ids
+            and user_id not in self.config.allowed_user_ids
+        ):
             return False, "Bạn không có quyền làm mới dữ liệu này.", channel_id, user_id, message_ts, user
         return (
             True,
@@ -317,10 +322,13 @@ def main() -> int:
         return 2
 
     if args.check_config:
+        allowed_summary = (
+            "all" if "*" in config.allowed_user_ids else str(len(config.allowed_user_ids))
+        )
         LOGGER.info(
-            "Slack listener configuration is ready for channel %s and %d allowed user(s).",
+            "Slack listener configuration is ready for channel %s and %s allowed user(s).",
             config.channel_id,
-            len(config.allowed_user_ids),
+            allowed_summary,
         )
         return 0
 

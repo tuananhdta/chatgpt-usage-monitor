@@ -236,12 +236,15 @@ local vì không cần public HTTP endpoint.
 ```text
 SLACK_APP_TOKEN=xapp-...
 SLACK_TEAM_ID=T...
-SLACK_ALLOWED_USER_IDS=U...,U...
+# Dùng * nếu mọi user trong workspace/channel được phép bấm Refresh.
+SLACK_ALLOWED_USER_IDS=*
 SLACK_REFRESH_COOLDOWN_SECONDS=45
 ```
 
-`SLACK_ALLOWED_USER_IDS` phải là Slack user ID, không phải display name. App
-cần bật Socket Mode và có app-level token với scope `connections:write`.
+`SLACK_ALLOWED_USER_IDS` phải là Slack user ID, không phải display name; có thể
+dùng giá trị đặc biệt `*` để cho phép mọi user trong đúng workspace và channel
+đã cấu hình. App cần bật Socket Mode và có app-level token với scope
+`connections:write`.
 
 Tạo Control Panel một lần:
 
